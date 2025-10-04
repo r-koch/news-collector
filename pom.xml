@@ -25,7 +25,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>dev.rkoch.aws</groupId>
-			<artifactId>aws-utils</artifactId>
+			<artifactId>collector-utils</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
@@ -40,13 +40,9 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>dynamodb</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>2.15.4</version>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20250517</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -70,6 +66,20 @@
 				<artifactId>maven-shade-plugin</artifactId>
 				<configuration>
 					<createDependencyReducedPom>false</createDependencyReducedPom>
+					<filters>
+						<filter>
+							<artifact>*:*</artifact>
+							<excludes>
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+								<exclude>META-INF/LICENSE*</exclude>
+								<exclude>META-INF/NOTICE*</exclude>
+								<exclude>META-INF/DEPENDENCIES</exclude>
+								<exclude>**/module-info.class</exclude>
+							</excludes>
+						</filter>
+					</filters>
 				</configuration>
 				<executions>
 					<execution>
