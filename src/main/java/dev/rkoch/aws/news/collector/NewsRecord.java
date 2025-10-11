@@ -58,7 +58,7 @@ public class NewsRecord implements ParquetRecord {
       public NewsRecord add(NewsRecord target, String heading, Object value) {
         switch (heading) {
           case LOCAL_DATE:
-            target.setLocalDate((LocalDate) value);
+            target.setLocalDate(LocalDate.ofEpochDay((int) value));
             return target;
           case ID:
             target.setId((String) value);
