@@ -9,7 +9,7 @@ import blue.strategic.parquet.Dehydrator;
 import blue.strategic.parquet.Hydrator;
 import dev.rkoch.aws.s3.parquet.ParquetRecord;
 
-public class NewsRecord implements ParquetRecord {
+public class NewsRecord implements ParquetRecord<NewsRecord> {
 
   private static final String LOCAL_DATE = "localDate";
   private static final String ID = "id";

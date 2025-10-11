@@ -2,7 +2,6 @@ package dev.rkoch.aws.news.collector;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
@@ -16,8 +15,6 @@ import org.json.JSONObject;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import dev.rkoch.aws.collector.utils.State;
-import dev.rkoch.aws.s3.parquet.S3Parquet;
-import software.amazon.awssdk.regions.Region;
 
 public class NewsCollector {
 
@@ -32,35 +29,25 @@ public class NewsCollector {
 
   private static final String PILLAR_NEWS = "pillar/news";
 
-  private static final String THEGUARDIAN_API_KEY = "THEGUARDIAN_API_KEY";
-
   private static final long MAX_TIME_MILLIS = 14 * 60 * 1000; // 14 min
 
   private final LambdaLogger logger;
 
-  private final Region region;
+  private final Handler handler;
 
   private final long startTimeMillis;
 
-  private String apiKey;
-
-  private HttpClient httpClient;
-
   private long lastRequest = 0;
 
-  private S3Parquet s3Parquet;
-
-  private State state;
-
-  public NewsCollector(LambdaLogger logger, Region region) {
+  public NewsCollector(LambdaLogger logger, Handler handler) {
     this.logger = logger;
-    this.region = region;
+    this.handler = handler;
     startTimeMillis = System.currentTimeMillis();
   }
 
   public void collect() {
-    try (State state = getState()) {
-      LocalDate date = getStartDate();
+    try (State state = new State(handler.getS3Client(), BUCKET_NAME)) {
+      LocalDate date = getStartDate(state);
       LocalDate now = LocalDate.now();
       for (; continueExecution() && date.isBefore(now); date = date.plusDays(1)) {
         try {
@@ -83,13 +70,6 @@ public class NewsCollector {
     return (System.currentTimeMillis() - startTimeMillis) <= MAX_TIME_MILLIS;
   }
 
-  private String getApiKey() {
-    if (apiKey == null) {
-      apiKey = System.getenv(THEGUARDIAN_API_KEY);
-    }
-    return apiKey;
-  }
-
   private List<NewsRecord> getData(final LocalDate date) throws LimitExceededException {
     List<NewsRecord> items = new ArrayList<>();
     try {
@@ -103,13 +83,6 @@ public class NewsCollector {
     } catch (JSONException e) {
       throw new LimitExceededException();
     }
-  }
-
-  private HttpClient getHttpClient() {
-    if (httpClient == null) {
-      httpClient = HttpClient.newHttpClient();
-    }
-    return httpClient;
   }
 
   private List<NewsRecord> getItems(final LocalDate date, final JSONObject response) {
@@ -138,7 +111,7 @@ public class NewsCollector {
     try {
       HttpRequest httpRequest = HttpRequest.newBuilder(getUri(date, date, page)).build();
       waitBeforeApiCall();
-      HttpResponse<String> httpResponse = getHttpClient().send(httpRequest, BodyHandlers.ofString());
+      HttpResponse<String> httpResponse = handler.getHttpClient().send(httpRequest, BodyHandlers.ofString());
       String body = httpResponse.body();
       return new JSONObject(body).getJSONObject("response");
     } catch (IOException | InterruptedException e) {
@@ -146,35 +119,21 @@ public class NewsCollector {
     }
   }
 
-  private S3Parquet getS3Parquet() {
-    if (s3Parquet == null) {
-      s3Parquet = new S3Parquet(region);
-    }
-    return s3Parquet;
-  }
-
-  private LocalDate getStartDate() {
-    LocalDate lastAddedNewsDate = getState().getLastAddedNewsDate();
+  private LocalDate getStartDate(final State state) {
+    LocalDate lastAddedNewsDate = state.getLastAddedNewsDate();
     if (lastAddedNewsDate == null) {
-      return getState().getAvStartDate();
+      return state.getAvStartDate();
     } else {
       return lastAddedNewsDate.plusDays(1);
     }
   }
 
-  private State getState() {
-    if (state == null) {
-      state = new State(region, BUCKET_NAME);
-    }
-    return state;
-  }
-
   private URI getUri(final LocalDate from, final LocalDate to, final int page) {
-    return URI.create(API_URL.formatted(getApiKey(), from.toString(), to.toString(), page));
+    return URI.create(API_URL.formatted(handler.getApiKey(), from.toString(), to.toString(), page));
   }
 
   private void insert(final LocalDate date, final List<NewsRecord> items) throws Exception {
-    getS3Parquet().write(BUCKET_NAME, PARQUET_KEY.formatted(date), items, new NewsRecord().getDehydrator());
+    handler.getS3Parquet().write(BUCKET_NAME, PARQUET_KEY.formatted(date), items);
   }
 
   private void waitBeforeApiCall() throws InterruptedException {
