@@ -34,9 +34,13 @@ public class NewsCollector {
 
   private static final String THEGUARDIAN_API_KEY = "THEGUARDIAN_API_KEY";
 
+  private static final long MAX_TIME_MILLIS = 14 * 60 * 1000; // 14 min
+
   private final LambdaLogger logger;
 
   private final Region region;
+
+  private final long startTimeMillis;
 
   private String apiKey;
 
@@ -51,13 +55,14 @@ public class NewsCollector {
   public NewsCollector(LambdaLogger logger, Region region) {
     this.logger = logger;
     this.region = region;
+    startTimeMillis = System.currentTimeMillis();
   }
 
   public void collect() {
     try (State state = getState()) {
       LocalDate date = getStartDate();
       LocalDate now = LocalDate.now();
-      for (; date.isBefore(now); date = date.plusDays(1)) {
+      for (; continueExecution() && date.isBefore(now); date = date.plusDays(1)) {
         try {
           List<NewsRecord> records = getData(date);
           insert(date, records);
@@ -72,6 +77,10 @@ public class NewsCollector {
         }
       }
     }
+  }
+
+  private boolean continueExecution() {
+    return (System.currentTimeMillis() - startTimeMillis) <= MAX_TIME_MILLIS;
   }
 
   private String getApiKey() {
