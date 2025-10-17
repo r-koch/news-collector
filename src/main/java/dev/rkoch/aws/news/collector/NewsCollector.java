@@ -52,9 +52,13 @@ public class NewsCollector {
       for (; continueExecution() && date.isBefore(now); date = date.plusDays(1)) {
         try {
           List<NewsRecord> records = getData(date);
-          insert(date, records);
+          if (records.isEmpty()) {
+            logger.log("%s no data".formatted(date), LogLevel.INFO);
+          } else {
+            insert(date, records);
+            logger.log("%s inserted".formatted(date), LogLevel.INFO);
+          }
           state.setLastAddedNewsDate(date);
-          logger.log("%s inserted".formatted(date), LogLevel.INFO);
         } catch (LimitExceededException e) {
           logger.log("theguardian limit exceeded".formatted(date), LogLevel.INFO);
           return;
