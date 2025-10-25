@@ -49,23 +49,27 @@ public class NewsCollector {
     try (State state = new State(handler.getS3Client(), BUCKET_NAME)) {
       LocalDate date = getStartDate(state);
       LocalDate now = LocalDate.now();
-      for (; continueExecution() && date.isBefore(now); date = date.plusDays(1)) {
-        try {
-          List<NewsRecord> records = getData(date);
-          if (records.isEmpty()) {
-            logger.log("%s no data".formatted(date), LogLevel.INFO);
-          } else {
-            insert(date, records);
-            logger.log("%s inserted".formatted(date), LogLevel.INFO);
-          }
-          state.setLastAddedNewsDate(date);
-        } catch (LimitExceededException e) {
-          logger.log("theguardian limit exceeded".formatted(date), LogLevel.INFO);
-          return;
-        } catch (Exception e) {
-          logger.log(e.getMessage(), LogLevel.ERROR);
-          return;
+      collect(state, date, now);
+    }
+  }
+
+  public void collect(final State state, final LocalDate start, final LocalDate end) {
+    for (LocalDate date = start; continueExecution() && date.isBefore(end); date = date.plusDays(1)) {
+      try {
+        List<NewsRecord> records = getData(date);
+        if (records.isEmpty()) {
+          logger.log("%s no data".formatted(date), LogLevel.INFO);
+        } else {
+          insert(date, records);
+          logger.log("%s inserted".formatted(date), LogLevel.INFO);
         }
+        state.setLastAddedNewsDate(date);
+      } catch (LimitExceededException e) {
+        logger.log("theguardian limit exceeded".formatted(date), LogLevel.INFO);
+        return;
+      } catch (Exception e) {
+        logger.log(e.getMessage(), LogLevel.ERROR);
+        return;
       }
     }
   }
