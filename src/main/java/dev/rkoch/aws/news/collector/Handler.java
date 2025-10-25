@@ -3,6 +3,7 @@ package dev.rkoch.aws.news.collector;
 import java.net.http.HttpClient;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import dev.rkoch.aws.s3.parquet.S3Parquet;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -50,7 +51,8 @@ public class Handler implements RequestHandler<Void, Void> {
 
   @Override
   public Void handleRequest(Void input, Context context) {
-    new NewsCollector(context.getLogger(), this).collect();
+    new NewsCollector(context, this).collect();
+    context.getLogger().log("stopped with %s ms remaining".formatted(context.getRemainingTimeInMillis()), LogLevel.INFO);
     return null;
   }
 

@@ -12,6 +12,7 @@ import javax.naming.LimitExceededException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.logging.LogLevel;
 import dev.rkoch.aws.collector.utils.State;
@@ -25,24 +26,24 @@ public class NewsCollector {
 
   private static final String BUCKET_NAME = "dev-rkoch-spre";
 
+  private static final long MIN_REMAINING_TIME_MILLIS = 30 * 1000; // 30 sec
+
   private static final String PARQUET_KEY = "raw/news/localDate=%s/data.parquet";
 
   private static final String PILLAR_NEWS = "pillar/news";
 
-  private static final long MAX_TIME_MILLIS = 14 * 60 * 1000; // 14 min
-
-  private final LambdaLogger logger;
+  private final Context context;
 
   private final Handler handler;
 
-  private final long startTimeMillis;
+  private final LambdaLogger logger;
 
   private long lastRequest = 0;
 
-  public NewsCollector(LambdaLogger logger, Handler handler) {
-    this.logger = logger;
+  public NewsCollector(Context context, Handler handler) {
+    this.context = context;
+    this.logger = context.getLogger();
     this.handler = handler;
-    startTimeMillis = System.currentTimeMillis();
   }
 
   public void collect() {
@@ -75,7 +76,7 @@ public class NewsCollector {
   }
 
   private boolean continueExecution() {
-    return (System.currentTimeMillis() - startTimeMillis) <= MAX_TIME_MILLIS;
+    return context.getRemainingTimeInMillis() >= MIN_REMAINING_TIME_MILLIS;
   }
 
   private List<NewsRecord> getData(final LocalDate date) throws LimitExceededException {
