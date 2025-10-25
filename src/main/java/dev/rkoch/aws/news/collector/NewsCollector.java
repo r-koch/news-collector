@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,8 @@ public class NewsCollector {
   private static final String API_URL =
       "https://content.guardianapis.com/search?api-key=%s&show-fields=bodyText&lang=en&page-size=50&from-date=%s&to-date=%s&page=%s";
 
+  private static final long API_CALL_MIN_FREQUENCY_MILLIS = 1010;
+
   private static final String BUCKET_NAME = "dev-rkoch-spre";
 
   private static final long MIN_REMAINING_TIME_MILLIS = 30 * 1000; // 30 sec
@@ -38,7 +41,7 @@ public class NewsCollector {
 
   private final LambdaLogger logger;
 
-  private long lastRequest = 0;
+  private long lastApiCallMillis = 0;
 
   public NewsCollector(Context context, Handler handler) {
     this.context = context;
@@ -146,10 +149,9 @@ public class NewsCollector {
   }
 
   private void waitBeforeApiCall() throws InterruptedException {
-    while (System.currentTimeMillis() - lastRequest < 1000) {
-      Thread.sleep(50);
-    }
-    lastRequest = System.currentTimeMillis();
+    long sleepMillis = lastApiCallMillis + API_CALL_MIN_FREQUENCY_MILLIS - System.currentTimeMillis();
+    Thread.sleep(Duration.ofMillis(sleepMillis));
+    lastApiCallMillis = System.currentTimeMillis();
   }
 
 }
